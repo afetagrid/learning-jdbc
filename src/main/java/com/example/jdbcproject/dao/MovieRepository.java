@@ -1,10 +1,11 @@
 package com.example.jdbcproject.dao;
 
+import com.example.jdbcproject.model.Actor;
 import com.example.jdbcproject.model.Movie;
+import com.example.jdbcproject.rowmapper.MovieRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,11 +21,22 @@ public class MovieRepository implements MovieDao {
     @Override
     public List<Movie> selectMovies() {
         String sql = "SELECT id, name, release_date FROM movie;";
-        return jdbcTemplate.query(sql, (resultSet, rowNum) -> new Movie(
-                resultSet.getInt("id"),
-                resultSet.getString("name"),
-                LocalDate.parse(resultSet.getString("release_date"))
-        ));
+        List<Movie> movies = jdbcTemplate.query(sql, new MovieRowMapper());
+        for (Movie movie : movies) {
+            String SQL = """
+                SELECT a.id, a.name
+                FROM actor a
+                INNER JOIN actor_movie am ON a.id = am.actor_id
+                WHERE am.movie_id = ?;
+                """;
+            List<Actor> actors = jdbcTemplate.query(SQL, (resultSet, i) -> new Actor(
+                    resultSet.getInt("id"),
+                    resultSet.getString("name"),
+                    List.of()
+            ),movie.getId());
+            movie.setActors(actors);
+        }
+        return movies;
     }
 
     @Override
@@ -34,13 +46,32 @@ public class MovieRepository implements MovieDao {
                 FROM movie
                 WHERE id = ?;
                 """;
-        return jdbcTemplate.query(sql, (resultSet, rowNum) -> new Movie(
-                resultSet.getInt("id"),
-                resultSet.getString("name"),
-                LocalDate.parse(resultSet.getString("release_date"))
-            ), id)
-                .stream()
-                .findFirst();
+        Optional<Movie> movie = jdbcTemplate.query(sql, new MovieRowMapper(), id).stream().findFirst();
+        if (movie.isPresent()) {
+            String SQL = """
+                SELECT a.id, a.name
+                FROM actor a
+                INNER JOIN actor_movie am ON a.id = am.actor_id
+                WHERE am.movie_id = ?;
+                """;
+            List<Actor> actors = jdbcTemplate.query(SQL, (resultSet, i) -> new Actor(
+                    resultSet.getInt("id"),
+                    resultSet.getString("name"),
+                    List.of()
+            ), movie.get().getId());
+            movie.get().setActors(actors);
+        }
+        return movie;
+    }
+
+    @Override
+    public Optional<Movie> selectMovieByName(String name) {
+        String sql = """
+                SELECT id, name, release_date
+                FROM movie
+                WHERE name = ?;
+                """;
+        return jdbcTemplate.query(sql, new MovieRowMapper(), name).stream().findFirst();
     }
 
     @Override

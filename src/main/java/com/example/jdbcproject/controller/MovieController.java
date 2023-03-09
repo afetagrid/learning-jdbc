@@ -40,9 +40,15 @@ public class MovieController {
     }
 
     @PutMapping(path = "{id}")
-    public void updateMovie(@PathVariable Integer id,
+    public void updateMovie(@PathVariable("id") Integer id,
                             @RequestParam(required = false) String name,
                             @RequestParam(required = false) LocalDate releaseDate) {
         movieService.updateMovieById(id, name, releaseDate);
+    }
+
+    @PutMapping(path = "{movie_id}/actor/{actor_id}")
+    public void assignActorToMovie(@PathVariable("movie_id") Integer movie_id,
+                                   @PathVariable("actor_id") Integer actor_id) {
+        movieService.assignActorToMovie(movie_id, actor_id);
     }
 }
